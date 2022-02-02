@@ -1,0 +1,62 @@
+version: '3.8'
+
+networks:
+  myapp:
+
+services:
+  db:
+    container_name: ${APP_NAME}-db
+    image: 'mariadb:latest'
+    restart: always
+    ports:
+      - 3306:3306
+    volumes:
+      - './.docker/mysql:/var/lib/mysql'
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASS}
+      MYSQL_DATABASE: ${MYSQL_DB}
+    networks:
+      - myapp
+
+  php:
+    container_name: ${APP_NAME}-php
+    build: ./docker/php
+    volumes:
+      - './:/var/www/html' # Clone the root (.) on the nginx server (/var/www/html) 
+    environment:
+      - APP_ENV=${APP_ENV}
+      - APP_SECRET=${APP_SECRET}
+    depends_on:
+      - db
+    networks:
+      - myapp
+
+  nginx:
+    container_name: ${APP_NAME}-nginx
+    image: 'nginx:latest'
+    ports:
+      - 8080:80
+      #- 8443:443 # if https config
+    expose:
+      - 80
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - php
+    networks:
+      - myapp
+
+  phpmyadmin:
+    image: 'phpmyadmin/phpmyadmin:latest'
+    container_name: ${APP_NAME}-phpmyadmin
+    ports:
+      - 8000:80
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS}
+    networks:
+      - myapp
+
